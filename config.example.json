@@ -3,15 +3,49 @@
   "bind_host": "0.0.0.0",
   "bind_port": 8787,
   "token": "CHANGE-ME-run: python3 -c \"import secrets;print(secrets.token_urlsafe(24))\"",
-  "intervals_s": { "proc": 10, "crash": 120, "net": 600 },
+  "intervals_s": {
+    "proc": 10,
+    "crash": 120,
+    "net": 600
+  },
   "stale_after_hours": 4,
   "reveal_cmdlines": false,
-  "public_resolvers": ["9.9.9.9", "1.1.1.1", "8.8.8.8"],
+  "public_resolvers": [
+    "9.9.9.9",
+    "1.1.1.1",
+    "8.8.8.8"
+  ],
   "endpoints": [
-    { "host": "sisu.xboxlive.com", "port": 443, "label": "Xbox sign-in (Minecraft auth)" },
-    { "host": "login.live.com", "port": 443, "label": "Microsoft account" },
-    { "host": "api.minecraftservices.com", "port": 443, "label": "Minecraft services" },
-    { "host": "github.com", "port": 443, "label": "GitHub" },
-    { "host": "example.com", "port": 443, "label": "Internet canary" }
-  ]
+    {
+      "host": "sisu.xboxlive.com",
+      "port": 443,
+      "label": "Xbox sign-in (Minecraft auth)"
+    },
+    {
+      "host": "login.live.com",
+      "port": 443,
+      "label": "Microsoft account"
+    },
+    {
+      "host": "api.minecraftservices.com",
+      "port": 443,
+      "label": "Minecraft services"
+    },
+    {
+      "host": "github.com",
+      "port": 443,
+      "label": "GitHub"
+    },
+    {
+      "host": "example.com",
+      "port": 443,
+      "label": "Internet canary"
+    }
+  ],
+  "notify": {
+    "enabled": true,
+    "min_level": "alert",
+    "cooldown_s": 1800,
+    "require_repeat": true
+  }
 }

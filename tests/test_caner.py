@@ -6,7 +6,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from caner import crashscan, dnsquery, netscan, procscan  # noqa: E402
+from caner import crashscan, dnsquery, netscan, notify, procscan  # noqa: E402
 
 
 class TestDNSWire(unittest.TestCase):
@@ -115,6 +115,60 @@ class TestNetscanVerdict(unittest.TestCase):
                     "1.1.1.1": ["1.2.3.4"], "8.8.8.8": ["1.2.3.4"]}, dead={"1.2.3.4"})
         out = netscan.scan(endpoints=[{"host": "x.test", "port": 443}])
         self.assertEqual(out["endpoints"][0]["status"], "down")
+
+
+class TestNotifier(unittest.TestCase):
+    """A monitor that cries wolf gets muted, so the quiet rules are the feature."""
+
+    def _n(self, **kw):
+        n = notify.Notifier(**kw)
+        n.enabled = True                     # bypass the notify-send lookup
+        self.sent = []
+        n._send = lambda f: (self.sent.append(f), True)[1]
+        return n
+
+    def test_fingerprint_ignores_drifting_numbers(self):
+        a = {"level": "alert", "text": "free 981.0 MB of 3309.4 MB"}
+        b = {"level": "alert", "text": "free 984.2 MB of 3309.4 MB"}
+        self.assertEqual(notify.fingerprint(a), notify.fingerprint(b))
+
+    def test_fingerprint_distinguishes_different_findings(self):
+        a = {"level": "alert", "text": "memory cliff"}
+        b = {"level": "alert", "text": "endpoint degraded"}
+        self.assertNotEqual(notify.fingerprint(a), notify.fingerprint(b))
+
+    def test_requires_two_consecutive_scans(self):
+        n = self._n(cooldown_s=0)
+        f = [{"level": "alert", "text": "boom"}]
+        self.assertEqual(n.process(f, now=100), [])       # first sighting: armed only
+        self.assertEqual(len(n.process(f, now=101)), 1)   # confirmed: fires
+
+    def test_transient_blip_never_fires(self):
+        n = self._n(cooldown_s=0)
+        n.process([{"level": "alert", "text": "blip"}], now=100)
+        n.process([], now=101)                            # vanished before confirming
+        self.assertEqual(n.process([{"level": "alert", "text": "blip"}], now=102), [])
+
+    def test_cooldown_suppresses_repeat(self):
+        n = self._n(cooldown_s=1800)
+        f = [{"level": "alert", "text": "boom"}]
+        n.process(f, now=100)
+        self.assertEqual(len(n.process(f, now=101)), 1)
+        self.assertEqual(n.process(f, now=200), [])       # inside cooldown
+        self.assertEqual(len(n.process(f, now=2000)), 1)  # cooldown elapsed
+
+    def test_min_level_filters_lower_findings(self):
+        n = self._n(cooldown_s=0, min_level="alert")
+        f = [{"level": "warn", "text": "meh"}, {"level": "info", "text": "fyi"}]
+        n.process(f, now=100)
+        self.assertEqual(n.process(f, now=101), [])
+
+    def test_disabled_notifier_is_silent(self):
+        n = self._n(cooldown_s=0)
+        n.enabled = False
+        f = [{"level": "alert", "text": "boom"}]
+        n.process(f, now=100)
+        self.assertEqual(n.process(f, now=101), [])
 
 
 if __name__ == "__main__":

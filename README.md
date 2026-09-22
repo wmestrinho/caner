@@ -91,6 +91,17 @@ The unit caps memory at 128 MB and sets `OOMScoreAdjust=500` — if the box trul
 runs out of memory, the monitor should be the first thing sacrificed, not the
 work you were doing.
 
+### Notifications
+
+Alert-level findings push a desktop notification via `notify-send`, because an
+always-on box is one nobody is watching. It is deliberately quiet: alerts only,
+a finding must survive two consecutive scans before it fires, and the same
+finding cannot repeat inside 30 minutes. Tune or disable it in `caner.json`:
+
+```json
+"notify": { "enabled": true, "min_level": "alert", "cooldown_s": 1800, "require_repeat": true }
+```
+
 caner never kills a process. It prints the command and leaves the decision to you.
 
 ## Version

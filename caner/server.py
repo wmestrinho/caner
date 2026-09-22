@@ -11,7 +11,7 @@ import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from . import __version__, crashscan, netscan, procscan
+from . import __version__, crashscan, netscan, notify, procscan
 
 WEB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
 CONTENT_TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
@@ -63,6 +63,12 @@ class Scanner(threading.Thread):
         self.cache, self.cfg = cache, cfg
         self.stop_event = threading.Event()
         self._force = threading.Event()
+        note = cfg.get("notify", {})
+        self.notifier = notify.Notifier(
+            enabled=note.get("enabled", True),
+            min_level=note.get("min_level", "alert"),
+            cooldown_s=note.get("cooldown_s", 1800),
+            require_repeat=note.get("require_repeat", True))
 
     def force(self) -> None:
         self._force.set()
@@ -81,7 +87,19 @@ class Scanner(threading.Thread):
                     except Exception:                       # never let one scanner kill the loop
                         self.cache.put(name, {}, error=traceback.format_exc(limit=3))
                     next_at[name] = time.monotonic() + intervals[name]
+            self._notify()
             self.stop_event.wait(1.0)
+
+    def _notify(self) -> None:
+        findings = []
+        for name in ("proc", "crash", "net"):
+            data = self.cache.get(name).get("data")
+            if data:
+                findings.extend(data.get("findings", []))
+        try:
+            self.notifier.process(findings)
+        except Exception:                                  # notifications are never critical
+            pass
 
     def _proc(self) -> dict:
         return procscan.scan(stale_after_s=self.cfg["stale_after_hours"] * 3600,
@@ -148,6 +166,10 @@ def make_handler(cache: Cache, cfg: dict, scanner: Scanner):
                     "hostname": os.uname().nodename,
                     "now": time.time(),
                     "cmdlines_revealed": cfg["reveal_cmdlines"],
+                    "notifications": {"enabled": scanner.notifier.enabled,
+                                      "sent": scanner.notifier.sent_count,
+                                      "min_level": [k for k, v in notify.LEVELS.items()
+                                                    if v == scanner.notifier.min_level][0]},
                 }
                 return self._json(200, payload)
             if path == "/api/rescan":

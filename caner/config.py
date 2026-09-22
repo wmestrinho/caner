@@ -19,6 +19,10 @@ DEFAULTS = {
     "known_issues": "known_issues.json",
     "public_resolvers": ["9.9.9.9", "1.1.1.1", "8.8.8.8"],
     "endpoints": None,          # None -> netscan.DEFAULT_ENDPOINTS
+    # Desktop notifications. Deliberately conservative: alerts only, one per
+    # 30 min, and a finding must survive two scans before it interrupts anyone.
+    "notify": {"enabled": True, "min_level": "alert", "cooldown_s": 1800,
+               "require_repeat": True},
 }
 
 
