@@ -1,0 +1,17 @@
+{
+  "_comment": "Signature fragments -> upstream reports. match_all entries must ALL appear in the joined frames+exe blob.",
+  "issues": [
+    {
+      "title": "Minecraft launcher: CEF/zygote subprocesses abort on uncaught std::bad_function_call",
+      "url": "https://github.com/omacom/omarchy/issues/11323",
+      "signal": "SIGABRT",
+      "match_all": ["liblauncher.so", "_Unwind_Resume"]
+    },
+    {
+      "title": "Minecraft bootstrapper: NULL vtable call from a 'clicked' handler with an event-handler signature",
+      "url": "https://bugs.mojang.com/",
+      "signal": "SIGSEGV",
+      "match_all": ["minecraft-launcher", "g_signal_emit"]
+    }
+  ]
+}

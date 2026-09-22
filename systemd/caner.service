@@ -1,0 +1,25 @@
+# User unit. Install:
+#   mkdir -p ~/.config/systemd/user
+#   cp systemd/caner.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload && systemctl --user enable --now caner
+[Unit]
+Description=caner — diagnostic scanner
+Documentation=https://github.com/wmestrinho/caner
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/Projects/wmestrinho/caner
+ExecStart=/usr/bin/python3 -m caner --config %h/Projects/wmestrinho/caner/caner.json
+Restart=on-failure
+RestartSec=10
+# It is a memory monitor; it should be the first thing killed if memory runs out.
+MemoryMax=128M
+OOMScoreAdjust=500
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectHome=read-only
+ProtectSystem=strict
+
+[Install]
+WantedBy=default.target

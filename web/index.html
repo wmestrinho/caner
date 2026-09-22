@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>caner</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13'>&#128269;</text></svg>">
+</head>
+<body>
+<header class="bar">
+  <h1>caner</h1>
+  <p class="sub"><span id="host">—</span> · v<span id="ver">—</span> · own footprint <strong id="selfrss">—</strong></p>
+  <button id="rescan" type="button">Rescan now</button>
+</header>
+
+<main>
+  <section id="findings" class="findings" aria-live="polite"></section>
+
+  <section class="panel">
+    <div class="phead">
+      <h2>Memory</h2>
+      <p id="memsum" class="psum">—</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Application</th><th class="num">RSS</th><th class="num">Procs</th><th class="num">Oldest</th><th>State</th></tr></thead>
+        <tbody id="memrows"><tr><td colspan="5" class="muted">waiting for first scan…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="phead">
+      <h2>Crashes</h2>
+      <p id="crashsum" class="psum">—</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Executable</th><th>Signal</th><th class="num">Count</th><th>Signature</th><th>Notes</th></tr></thead>
+        <tbody id="crashrows"><tr><td colspan="5" class="muted">waiting for first scan…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="phead">
+      <h2>Network</h2>
+      <p id="netsum" class="psum">—</p>
+    </div>
+    <div id="netrows"><p class="muted">waiting for first scan…</p></div>
+  </section>
+</main>
+
+<footer class="foot">
+  <p>Read-only. caner never kills a process — it prints the command and leaves the decision to you.</p>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>

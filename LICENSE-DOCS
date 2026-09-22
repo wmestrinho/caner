@@ -1,0 +1,22 @@
+Creative Commons Attribution 4.0 International (CC BY 4.0)
+
+Copyright (c) 2026 Luiz Wagner Mestrinho
+
+The documentation in this repository -- README.md, everything under docs/, and
+the prose in CHANGELOG.md and HANDOFF.md -- is licensed under the Creative
+Commons Attribution 4.0 International License.
+
+You are free to share and adapt this material for any purpose, including
+commercially, provided you give appropriate credit, link to the license, and
+indicate if changes were made.
+
+  Human-readable summary: https://creativecommons.org/licenses/by/4.0/
+  Full legal code:        https://creativecommons.org/licenses/by/4.0/legalcode
+
+Source code in this repository is NOT covered by this license. It is licensed
+separately under the MIT License -- see LICENSE.
+
+Why the split: Creative Commons explicitly recommends against applying CC
+licenses to software, because they do not address source availability, patent
+grants, or warranty disclaimers the way software licenses do. See
+https://creativecommons.org/faq/#can-i-apply-a-creative-commons-license-to-software
