@@ -2,6 +2,25 @@
 
 Cross-session state. Append newest at the top.
 
+## 2026-09-22 — Mojang report abandoned; known_issues corrected (Seat 3)
+
+**Filing the launcher SIGSEGV upstream is dropped.** Not a deferral — a decision.
+Since Mojang's Feb-2025 migration both filing *and* duplicate search need a
+Microsoft sign-in, and the portal proved too unreliable to complete the form.
+Verified anonymously the same day: `project/search` → `total: 0`,
+`project/MCL` → 404, `search/jql` → empty *because unauthorised*, not because
+nothing matches. **It has therefore never been duplicate-checked.**
+
+`known_issues.json` had the SIGSEGV pointing at `https://bugs.mojang.com/` —
+the homepage — so a match looked like a known upstream bug. Now points at
+`docs/minecraft-launcher-2.1.3-segfault.md` (moved into the repo so every seat
+can reach it) and the title says "analysed, NOT filed upstream".
+
+The ready-to-paste packet stays on Seat 3 at
+`~/Work/minecraft-launcher-2.1.3-MOJIRA-SUBMISSION.md` and
+`~/Work/mojira-description.txt` if anyone revisits it. The analysis itself is
+sound; only its upstream status is unknown.
+
 ## 2026-09-22 — v0.5.0, platform seam + netscan on three OSes (Seat 3)
 
 **State:** uncommitted on `main`. 69 tests pass, validators clean, service
