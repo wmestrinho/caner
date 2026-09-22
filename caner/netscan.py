@@ -20,6 +20,10 @@ from . import dnsquery
 
 DEFAULT_PUBLIC_RESOLVERS = ["9.9.9.9", "1.1.1.1", "8.8.8.8"]
 
+# RFC 5737 TEST-NET-1: reserved for documentation and guaranteed never routed.
+# Nothing on the public internet may answer here, which makes it a control.
+BLACKHOLE_IP = "192.0.2.1"
+
 DEFAULT_ENDPOINTS = [
     {"host": "sisu.xboxlive.com", "port": 443, "label": "Xbox sign-in (Minecraft auth)"},
     {"host": "login.live.com", "port": 443, "label": "Microsoft account"},
@@ -54,6 +58,25 @@ def tcp_probe(ip: str, port: int, timeout: float = 5.0) -> dict:
                 "error": exc.strerror or str(exc)}
     finally:
         sock.close()
+
+
+def probe_selftest(port: int = 443, timeout: float = 4.0) -> dict:
+    """Confirm an unreachable address is actually reported unreachable.
+
+    This is a control, not a formality. If a connection to a reserved,
+    unroutable address *succeeds*, something between this machine and the
+    internet is accepting every connection — a captive portal, a transparent
+    proxy, a hijacking resolver. In that state every reachability result
+    netscan produces is meaningless, and saying so is far more useful than
+    quietly reporting that all endpoints are fine.
+    """
+    result = tcp_probe(BLACKHOLE_IP, port, timeout)
+    return {
+        "target": f"{BLACKHOLE_IP}:{port}",
+        "connected": result["ok"],
+        "trustworthy": not result["ok"],
+        "detail": result["error"] or "connected (unexpected)",
+    }
 
 
 def scan(endpoints=None, public_resolvers=None, timeout: float = 4.0,
@@ -92,6 +115,8 @@ def scan(endpoints=None, public_resolvers=None, timeout: float = 4.0,
     with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
         for result in pool.map(lambda t: (t, tcp_probe(t[0], t[1], timeout)), sorted(targets)):
             probes[result[0]] = result[1]
+
+    selftest = probe_selftest(timeout=timeout)
 
     rows, findings = [], []
     for endpoint in endpoints:
@@ -153,9 +178,17 @@ def scan(endpoints=None, public_resolvers=None, timeout: float = 4.0,
                 f"No IPv6 default route, yet {aaaa} AAAA record(s) came back. Clients that "
                 f"try IPv6 first can stall before falling back to IPv4.")})
 
+    if not selftest["trustworthy"]:
+        findings.insert(0, {"level": "alert", "text": (
+            f"Connection to {selftest['target']} succeeded — that address is reserved "
+            f"and unroutable, so something is accepting every connection (captive "
+            f"portal, transparent proxy, or hijacking middlebox). Every reachability "
+            f"result below is unreliable until that is resolved.")})
+
     return {
         "resolvers": resolvers,
         "ipv6_route": v6,
+        "selftest": selftest,
         "endpoints": rows,
         "findings": findings,
     }

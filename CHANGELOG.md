@@ -5,6 +5,31 @@ All notable changes to caner are documented here, following
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-09-22
+
+### Added
+- **Probe self-test** (`netscan.probe_selftest`). Every scan now also tries to
+  connect to `192.0.2.1` — RFC 5737 TEST-NET-1, reserved for documentation and
+  guaranteed never routed. Nothing may answer there.
+
+  It is a control, not a formality. If that connection *succeeds*, something
+  between this machine and the internet is accepting every connection — a
+  captive portal, a transparent proxy, a hijacking middlebox — and in that state
+  every reachability result netscan produces is meaningless. Reporting "all
+  endpoints fine" would be worse than useless, so caner raises an alert saying
+  the results cannot be trusted. Surfaced in the Network panel header.
+
+  This also closes the gap noted in 0.1.0: netscan's probe path had never been
+  exercised against a genuine black hole outside the unit tests. It now is, on
+  every scan.
+- 3 tests covering the trustworthy path, the interception path, and the alert
+  that `scan()` raises when probes cannot be believed.
+
+### Fixed
+- The netscan verdict tests stubbed every address as reachable, which made the
+  new self-test correctly conclude the network was intercepting traffic. The
+  harness now keeps the reserved address unreachable, as a sane network would.
+
 ## [0.3.0] — 2026-09-22
 
 ### Added

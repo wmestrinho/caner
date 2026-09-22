@@ -48,6 +48,14 @@ working one. CDNs pick an edge per resolver, so "DNS works" and "you can reach
 the service" are different questions. netscan asks every resolver separately and
 TCP-probes each distinct answer.
 
+### The control
+
+Every network scan also tries to reach `192.0.2.1`, a reserved address that is
+guaranteed never routed. If that connection *succeeds*, something is accepting
+every connection — a captive portal or transparent proxy — and every other
+reachability result is meaningless. caner says so rather than reporting that
+everything is fine.
+
 ## Install and run
 
 ```bash

@@ -73,9 +73,13 @@ function renderCrash(entry) {
 function renderNet(entry) {
   const d = entry && entry.data;
   if (!d) return;
+  const st = d.selftest;
+  const trust = st ? (st.trustworthy
+    ? "probe control OK"
+    : "PROBES UNTRUSTWORTHY — connections are being intercepted") : "";
   $("netsum").textContent =
     `${d.resolvers.length} resolver(s) · IPv6 route ${d.ipv6_route ? "yes" : "no"} · ` +
-    `updated ${dur(entry.age_s)} ago`;
+    (trust ? trust + " · " : "") + `updated ${dur(entry.age_s)} ago`;
   $("netrows").innerHTML = d.endpoints.map((e) => {
     const cls = e.status === "ok" ? "t-ok" : e.status === "degraded" ? "t-alert" : "t-warn";
     const rows = e.resolvers.map((r) => {

@@ -89,6 +89,9 @@ class TestNetscanVerdict(unittest.TestCase):
         netscan.have_ipv6_route = self._real_v6
 
     def _wire(self, mapping, dead):
+        # The reserved black-hole address must stay unreachable, or scan()'s probe
+        # self-test correctly concludes the network is intercepting everything.
+        dead = set(dead) | {netscan.BLACKHOLE_IP}
         dnsquery.system_resolvers = lambda: ["10.0.0.1"]
         dnsquery.query = lambda server, name, **kw: mapping[server]
         netscan.tcp_probe = lambda ip, port, timeout=5.0: (
@@ -171,6 +174,47 @@ class TestNotifier(unittest.TestCase):
         f = [{"level": "alert", "text": "boom"}]
         n.process(f, now=100)
         self.assertEqual(n.process(f, now=101), [])
+
+
+class TestProbeSelftest(unittest.TestCase):
+    """A probe that cannot detect failure makes every 'ok' meaningless."""
+
+    def setUp(self):
+        self._real = netscan.tcp_probe
+
+    def tearDown(self):
+        netscan.tcp_probe = self._real
+
+    def test_blackhole_unreachable_means_trustworthy(self):
+        netscan.tcp_probe = lambda ip, port, timeout=5.0: {
+            "ip": ip, "ok": False, "ms": 4000.0, "error": "timeout — no SYN-ACK"}
+        out = netscan.probe_selftest()
+        self.assertTrue(out["trustworthy"])
+        self.assertFalse(out["connected"])
+
+    def test_blackhole_reachable_means_interception(self):
+        netscan.tcp_probe = lambda ip, port, timeout=5.0: {
+            "ip": ip, "ok": True, "ms": 12.0, "error": ""}
+        out = netscan.probe_selftest()
+        self.assertFalse(out["trustworthy"])
+
+    def test_scan_raises_alert_when_probes_cannot_be_trusted(self):
+        real_sys, real_q, real_v6 = (dnsquery.system_resolvers, dnsquery.query,
+                                     netscan.have_ipv6_route)
+        try:
+            dnsquery.system_resolvers = lambda: ["10.0.0.1"]
+            dnsquery.query = lambda server, name, **kw: ["5.6.7.8"]
+            netscan.have_ipv6_route = lambda: False
+            netscan.tcp_probe = lambda ip, port, timeout=5.0: {
+                "ip": ip, "ok": True, "ms": 5.0, "error": ""}      # everything "works"
+            out = netscan.scan(endpoints=[{"host": "x.test", "port": 443}])
+            alerts = [f for f in out["findings"] if f["level"] == "alert"]
+            self.assertTrue(alerts)
+            self.assertIn("unroutable", alerts[0]["text"])
+            self.assertFalse(out["selftest"]["trustworthy"])
+        finally:
+            dnsquery.system_resolvers, dnsquery.query = real_sys, real_q
+            netscan.have_ipv6_route = real_v6
 
 
 class TestHistory(unittest.TestCase):

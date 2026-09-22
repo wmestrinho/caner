@@ -2,12 +2,14 @@
 
 Cross-session state. Append newest at the top.
 
-## 2026-09-22 — v0.3.0 (Seat 3, HP Omarchy)
+## 2026-09-22 — v0.4.0 (Seat 3, HP Omarchy)
 
-**State:** running under systemd, v0.3.0. 30 tests pass, footprint 26.6 MB.
+**State:** running under systemd, v0.4.0. 33 tests pass, footprint ~26.6 MB.
 
 - v0.2.0 added desktop notifications — alerts only, two-scan confirmation,
   30 min cooldown, fingerprints that ignore drifting numbers.
+- v0.4.0 added a probe self-test against a reserved unroutable address, which
+  doubles as captive-portal / transparent-proxy detection.
 - v0.3.0 added history, sparklines and a trend finding; samples persist to
   `~/.local/state/caner/history.jsonl` via `StateDirectory=caner` and survive a
   restart (verified).
@@ -15,7 +17,9 @@ Cross-session state. Append newest at the top.
 **Open / next**
 - Still no cold-boot test (only `systemctl --user restart`).
 - `netscan`'s `degraded` verdict still has never fired on a live failure; the
-  dead Akamai edge that motivated it healed before the scanner existed.
+  dead Akamai edge that motivated it healed before the scanner existed. The
+  *probe path* is now exercised on every scan by the v0.4.0 self-test against
+  RFC 5737 TEST-NET-1, so a probe that cannot detect failure would be caught.
 - Trend finding has not yet fired in production — needs a real slow leak.
 
 ## 2026-09-22 — v0.1.0, first working release (Seat 3, HP Omarchy)
