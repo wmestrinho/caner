@@ -4,7 +4,9 @@ Cross-session state. Append newest at the top.
 
 ## 2026-09-22 — v0.1.0, first working release (Seat 3, HP Omarchy)
 
-**State:** working and running locally. Not yet installed as a systemd unit.
+**State:** working, installed and enabled as a systemd **user** service
+(`systemctl --user status caner`), serving on `0.0.0.0:8787` behind a token.
+Survives restart; starts at login.
 
 Built in one session after diagnosing a Minecraft launcher crash that turned out
 to be three unrelated problems, none of them the memory exhaustion they resembled.
@@ -21,7 +23,8 @@ Verified on this machine:
 - Footprint 26.5 MB; 14 tests pass; responsive check clean.
 
 **Open / next**
-- Install the systemd user unit and confirm it survives a reboot.
+- Confirm it comes back after a full reboot (only `systemctl --user restart`
+  has been exercised so far).
 - `netscan` has never fired a real `degraded` verdict in the wild — worth
   re-checking the next time an endpoint misbehaves.
 - No history/trend storage yet; the API returns point-in-time state only.
