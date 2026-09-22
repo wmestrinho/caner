@@ -1,6 +1,6 @@
 # caner
 
-A featherweight diagnostic scanner for low-memory Linux workstations.
+A featherweight diagnostic scanner for developer workstations.
 Three scanners, one dashboard, **Python standard library only** — no pip, no npm,
 no build step. It runs in about **26 MB**.
 
@@ -74,7 +74,23 @@ One-shot JSON, no server:
 python3 -m caner --once | less
 ```
 
-Requires Python 3.11+ and Linux (`/proc`, `coredumpctl`, `systemd-resolved`).
+Requires **Python 3.9+**, standard library only. No pip, no npm, no build step.
+
+### Platform support
+
+| Scanner    | What it needs                     | Linux | macOS | Windows |
+|------------|-----------------------------------|-------|-------|---------|
+| `netscan`  | sockets + per-OS resolver lookup  | yes   | yes   | yes     |
+| `procscan` | `/proc`                           | yes   | not yet | not yet |
+| `crashscan`| `coredumpctl`                     | yes   | not yet | not yet |
+
+Host-specific code lives in `caner/platforms/`, one module per OS. A scanner that
+is not ported to your host is reported as `unsupported` under `meta.platform`
+in `/api/snapshot` and skipped — it is never shown as an empty result, because an empty panel reads like
+a clean bill of health, and that is the mistake this tool exists to prevent.
+
+On macOS and Windows there is no supervisor unit yet; run `python3 -m caner`.
+The systemd user service under `systemd/` is Linux only.
 
 ## Deployment
 

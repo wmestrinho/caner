@@ -5,6 +5,75 @@ All notable changes to caner are documented here, following
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-09-22
+
+### Added
+- **Platform backends** (`caner/platforms/`). Every host-specific fact now comes
+  from one interface with a module per OS — `linux`, `darwin`, `windows`, and a
+  `generic` fallback. No scanner knows which machine it is running on any more.
+
+  The reason for doing this before adding features: caner started as a Linux
+  tool and said so in `AGENTS.md`, which was enough for an agent on the Windows
+  seat to decline to clone it. The tool was portable in principle and blocked in
+  practice.
+
+  Backends **decline** rather than guess — an unavailable fact is an empty list,
+  `False` or `""`, never an exception and never a fabricated value. A backend
+  missing a function falls through to `generic`, so a half-finished port keeps
+  the scan loop alive instead of taking the service down.
+- **`netscan` runs on macOS and Windows.** Resolver discovery is per-OS: the
+  dynamic store via `scutil --dns` on macOS, because `/etc/resolv.conf` there is
+  a compatibility file that often does not reflect what is actually queried; the
+  registry via `winreg` on Windows, ordered so the interface holding the default
+  route comes first, since Windows keeps subkeys for long-dead interfaces and
+  does not say which is live.
+- **Per-host DNS remediation.** The `degraded` alert used to hard-code an
+  `nmcli` command. It now asks the platform — `networksetup` on macOS, `netsh`
+  on Windows (flagged as needing elevation) — and prints no command at all when
+  the host has no portable answer, rather than one that cannot run there.
+- **Capability gating.** `/api/snapshot` reports `meta.platform.capabilities`, and the
+  scan loop skips scanners this host cannot run, marking them `unsupported`.
+  This is deliberately distinct from an error and from an empty result: on
+  macOS a `procscan` returning `{}` would render as a clean zero, which is
+  precisely the confident wrong conclusion this project was built to prevent.
+- **Notifications on all three platforms** — `notify-send`, `osascript`, and a
+  `NotifyIcon` balloon tip on Windows. Quote handling is per-host: AppleScript
+  string literals take no escape sequences, PowerShell doubles single quotes.
+- 36 tests (`tests/test_platforms.py`). Every backend is imported and checked on
+  whatever OS runs the suite, so the contract is enforced from Seat 3 even for
+  code that only runs on Seats 1 and 2. macOS resolver parsing is tested against
+  captured `scutil` output.
+
+### Changed
+- `netscan.have_ipv6_route` no longer shells out to `ip -6 route`. It does a UDP
+  `connect` to a global address, which performs a route lookup without sending a
+  packet, costs the same on every OS, and needs no subprocess. Verified to agree
+  with the previous implementation on this machine.
+- `netscan.degraded_finding` extracted from `scan()` so the remediation path can
+  be tested directly on a machine that is not the one the command is for.
+- `server.self_rss_mb`, the state directory and the hostname all route through
+  the platform seam. `os.uname()` is gone — it does not exist on Windows and
+  would have failed at import.
+- `AGENTS.md` states the platform support matrix and per-seat canonical paths,
+  and says plainly that this is not a Linux-only project.
+
+### Notes
+- `procscan` and `crashscan` remain Linux-only, by choice rather than oversight.
+  They are the larger rewrites and the least useful on the two seats that are
+  not memory-starved; `netscan` is the one whose value *increases* with more
+  seats, because comparing resolvers across machines distinguishes a bad router
+  from a bad host — an answer a single seat structurally cannot produce.
+- No supervisor unit ships for macOS or Windows yet; run `python3 -m caner`.
+- Platform details sit on the authenticated `/api/snapshot`, not on
+  `/api/health`. Health is unauthenticated liveness, and OS version, kernel
+  release and hostname are not things to hand out without a token.
+- Requires Python 3.9+ on every platform. The previous README figure of 3.11+ was
+  stricter than the code: every module parses against a 3.7 target and
+  `ThreadingHTTPServer` (3.7+) is the only stdlib API setting a floor. 3.9 is
+  adopted as the supported minimum because it is what macOS ships. This was
+  checked by parsing, not by running an older interpreter — no 3.9 runtime is
+  available on Seat 3 to test against.
+
 ## [0.4.0] — 2026-09-22
 
 ### Added

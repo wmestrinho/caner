@@ -13,10 +13,9 @@ from __future__ import annotations
 
 import concurrent.futures
 import socket
-import subprocess
 import time
 
-from . import dnsquery
+from . import dnsquery, platforms
 
 DEFAULT_PUBLIC_RESOLVERS = ["9.9.9.9", "1.1.1.1", "8.8.8.8"]
 
@@ -34,12 +33,8 @@ DEFAULT_ENDPOINTS = [
 
 
 def have_ipv6_route() -> bool:
-    try:
-        out = subprocess.run(["ip", "-6", "route", "show", "default"],
-                             capture_output=True, text=True, timeout=5, check=False).stdout
-        return bool(out.strip())
-    except (OSError, subprocess.SubprocessError):
-        return False
+    """Delegates to `platforms`, which route-tests with a socket, not a subprocess."""
+    return platforms.have_ipv6_route()
 
 
 def tcp_probe(ip: str, port: int, timeout: float = 5.0) -> dict:
@@ -77,6 +72,22 @@ def probe_selftest(port: int = 443, timeout: float = 4.0) -> dict:
         "trustworthy": not result["ok"],
         "detail": result["error"] or "connected (unexpected)",
     }
+
+
+def degraded_finding(host: str, bad: list[str], good: list[str]) -> dict:
+    """The alert for "a working service you cannot reach".
+
+    Split out so the remediation path is directly testable on a machine that is
+    not the one the command is for: the fix line is per-OS, and a backend with
+    no portable answer returns "", in which case the finding says nothing rather
+    than printing a command that cannot run here.
+    """
+    fix = platforms.dns_fix_command(DEFAULT_PUBLIC_RESOLVERS[:2])
+    return {"level": "alert", "text": (
+        f"{host}: your system resolver returns {', '.join(bad) or 'no usable address'} "
+        f"(unreachable), but a public resolver returns {', '.join(good)} (reachable). "
+        f"This is a working service you cannot reach. Pin DNS to a public resolver"
+        + (f": {fix}" if fix else "."))}
 
 
 def scan(endpoints=None, public_resolvers=None, timeout: float = 4.0,
@@ -157,11 +168,7 @@ def scan(endpoints=None, public_resolvers=None, timeout: float = 4.0,
                            if prt == port and ip in all_ips and p["ok"]})
             bad = sorted({p["ip"] for (ip, prt), p in probes.items()
                           if prt == port and ip in all_ips and not p["ok"]})
-            findings.append({"level": "alert", "text": (
-                f"{host}: your system resolver returns {', '.join(bad) or 'no usable address'} "
-                f"(unreachable), but a public resolver returns {', '.join(good)} (reachable). "
-                f"This is a working service you cannot reach. Pin DNS to a public resolver: "
-                f"nmcli con mod \"<connection>\" ipv4.ignore-auto-dns yes ipv4.dns \"9.9.9.9,1.1.1.1\"")})
+            findings.append(degraded_finding(host, bad, good))
         elif status == "down":
             findings.append({"level": "warn", "text": (
                 f"{host}: no resolver produced a reachable address on port {port}.")})
@@ -186,6 +193,7 @@ def scan(endpoints=None, public_resolvers=None, timeout: float = 4.0,
             f"result below is unreliable until that is resolved.")})
 
     return {
+        "platform": platforms.backend_name(),
         "resolvers": resolvers,
         "ipv6_route": v6,
         "selftest": selftest,

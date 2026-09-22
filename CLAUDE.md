@@ -35,6 +35,7 @@ caner/procscan.py    /proc walk, application grouping, reclaimable maths
 caner/crashscan.py   coredumpctl -> signatures, storms, known-issue mapping
 caner/netscan.py     per-resolver DNS + TCP probe, divergence verdicts
 caner/dnsquery.py    minimal DNS/UDP client (no dnspython)
+caner/platforms/     per-OS backends behind one interface (see AGENTS.md)
 caner/server.py      scan loop + read-only JSON API + static files
 caner/config.py      defaults, JSON overlay, the non-loopback token rule
 web/                 zero-build dashboard (vanilla JS)
@@ -42,6 +43,18 @@ known_issues.json    signature fragments -> upstream issue URLs
 ```
 
 ## Gotchas
+
+- **Nothing OS-specific outside `caner/platforms/`.** Reading `/proc`, shelling
+  to `coredumpctl`, calling `notify-send`, or touching `os.uname` anywhere else
+  is the regression to watch for — `os.uname` in particular does not exist on
+  Windows, so it fails at import-time rather than in a handler.
+- Backends are imported and tested on *every* OS (`tests/test_platforms.py`), so
+  a Windows-only module must still import cleanly on Linux — `winreg` is guarded
+  for exactly this reason. Keep parsing logic pure and pass the command output
+  in, so it can be tested from the seat it was written on.
+- Windows avoids PowerShell on the scan path deliberately: ~400 ms of start-up
+  per call is more load than the thing being monitored. `ctypes` and `winreg`
+  are stdlib and instant. PowerShell is used only for notifications.
 
 - `/proc` races: a PID can vanish between `listdir` and `open`. Every read is
   guarded; keep it that way.

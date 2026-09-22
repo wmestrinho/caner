@@ -1,0 +1,38 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "h=\"$CLAUDE_PROJECT_DIR/scripts/ap_session_hook.sh\"; [ -x \"$h\" ] || h=\"$CLAUDE_PROJECT_DIR/../ap-ops/scripts/ap_session_hook.sh\"; [ -x \"$h\" ] && \"$h\" start || true",
+            "timeout": 90,
+            "statusMessage": "AP session protocol: receive"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "h=\"$CLAUDE_PROJECT_DIR/scripts/ap_session_hook.sh\"; [ -x \"$h\" ] || h=\"$CLAUDE_PROJECT_DIR/../ap-ops/scripts/ap_session_hook.sh\"; [ -x \"$h\" ] && \"$h\" stop || true",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "h=\"$CLAUDE_PROJECT_DIR/scripts/ap_session_hook.sh\"; [ -x \"$h\" ] || h=\"$CLAUDE_PROJECT_DIR/../ap-ops/scripts/ap_session_hook.sh\"; [ -x \"$h\" ] && \"$h\" end || true",
+            "timeout": 90
+          }
+        ]
+      }
+    ]
+  }
+}

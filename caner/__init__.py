@@ -1,3 +1,3 @@
-"""caner — a featherweight diagnostic scanner for low-memory Linux workstations."""
+"""caner — a featherweight diagnostic scanner for developer workstations."""
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"

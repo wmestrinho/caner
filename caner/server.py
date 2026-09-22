@@ -11,13 +11,11 @@ import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from . import __version__, crashscan, history, netscan, notify, procscan
+from . import __version__, crashscan, history, netscan, notify, platforms, procscan
 
 def _history_path(cfg: dict) -> str:
-    """Prefer systemd's StateDirectory; fall back to XDG state."""
-    base = (os.environ.get("STATE_DIRECTORY", "").split(":")[0]
-            or os.path.join(os.environ.get("XDG_STATE_HOME",
-                                           os.path.expanduser("~/.local/state")), "caner"))
+    """Where this OS keeps per-user state; systemd's StateDirectory still wins."""
+    base = platforms.state_dir()
     try:
         os.makedirs(base, exist_ok=True)
     except OSError:
@@ -31,14 +29,8 @@ CONTENT_TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; c
 
 
 def self_rss_mb() -> float:
-    try:
-        with open("/proc/self/status", encoding="utf-8") as handle:
-            for line in handle:
-                if line.startswith("VmRSS:"):
-                    return round(int(line.split()[1]) / 1024, 1)
-    except OSError:
-        pass
-    return 0.0
+    """Own footprint, however this OS exposes it. The 40 MB budget is checked here."""
+    return platforms.self_rss_mb()
 
 
 class Cache:
@@ -47,6 +39,16 @@ class Cache:
     def __init__(self):
         self._lock = threading.Lock()
         self._data: dict[str, dict] = {}
+
+    def mark_unsupported(self, name: str, reason: str) -> None:
+        """Record a scanner this host cannot run.
+
+        Distinct from an error and from an empty result: on macOS and Windows a
+        procscan that simply returned `{}` would render as a clean zero, which
+        is exactly the confident wrong conclusion this project exists to prevent.
+        """
+        with self._lock:
+            self._data.setdefault(name, {})["unsupported"] = reason
 
     def put(self, name: str, payload: dict, error: str = "") -> None:
         with self._lock:
@@ -61,6 +63,7 @@ class Cache:
             entry = self._data.get(name, {})
             return {"data": entry.get("data"), "updated": entry.get("updated"),
                     "error": entry.get("error", ""),
+                    "unsupported": entry.get("unsupported", ""),
                     "age_s": round(time.time() - entry["updated"], 1) if entry.get("updated") else None}
 
     def snapshot(self) -> dict:
@@ -89,14 +92,34 @@ class Scanner(threading.Thread):
     def force(self) -> None:
         self._force.set()
 
+    SCANNER_CAPABILITY = {"proc": "procscan", "crash": "crashscan", "net": "netscan"}
+
+    def _supported(self) -> dict:
+        """Which scanners this host can actually run, decided once at start-up.
+
+        Announced rather than silently skipped: a scanner that is unported here
+        is a known gap, and the dashboard says so.
+        """
+        caps = platforms.capabilities()
+        ok = {}
+        for name, capability in self.SCANNER_CAPABILITY.items():
+            ok[name] = bool(caps.get(capability, False))
+            if not ok[name]:
+                self.cache.mark_unsupported(
+                    name, f"{capability} is not implemented for {platforms.backend_name()} yet")
+        return ok
+
     def run(self) -> None:
         intervals = self.cfg["intervals_s"]
         next_at = {name: 0.0 for name in intervals}
+        supported = self._supported()
         while not self.stop_event.is_set():
             now = time.monotonic()
             forced = self._force.is_set()
             self._force.clear()
             for name, runner in (("proc", self._proc), ("crash", self._crash), ("net", self._net)):
+                if not supported[name]:
+                    continue
                 if forced or now >= next_at[name]:
                     try:
                         self.cache.put(name, runner())
@@ -197,7 +220,8 @@ def make_handler(cache: Cache, cfg: dict, scanner: Scanner):
                 payload["meta"] = {
                     "version": __version__,
                     "self_rss_mb": self_rss_mb(),
-                    "hostname": os.uname().nodename,
+                    "hostname": platforms.hostname(),
+                    "platform": platforms.describe(),
                     "now": time.time(),
                     "cmdlines_revealed": cfg["reveal_cmdlines"],
                     "notifications": {"enabled": scanner.notifier.enabled,
@@ -236,7 +260,7 @@ def serve(cfg: dict) -> None:
     scanner.start()
     httpd = ThreadingHTTPServer((cfg["bind_host"], cfg["bind_port"]),
                                 make_handler(cache, cfg, scanner))
-    shown = cfg["bind_host"] if cfg["bind_host"] != "0.0.0.0" else os.uname().nodename
+    shown = cfg["bind_host"] if cfg["bind_host"] != "0.0.0.0" else platforms.hostname()
     suffix = f"?token={cfg['token']}" if cfg["token"] else ""
     print(f"caner {__version__} — http://{shown}:{cfg['bind_port']}/{suffix}")
     print(f"  own footprint: {self_rss_mb()} MB")

@@ -18,8 +18,16 @@ jobs:
           CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
           echo "$CHANGED_FILES"
 
-          if echo "$CHANGED_FILES" | grep -qvE '\.(md|txt)$|^docs/|^\.github/'; then
-            if ! echo "$CHANGED_FILES" | grep -q '^VERSION$'; then
+          # Here-strings, not `echo |`. Under `set -o pipefail` a pipeline also
+          # reports echo's status, and `grep -q` exits the moment it matches, so
+          # echo takes SIGPIPE (141) and the pipeline reads as failure — which
+          # `!` then inverts into "VERSION was not bumped". It is a race on how
+          # fast grep exits, so it passes far more often than it fails. GitHub's
+          # default shell is `bash -e` without pipefail, so this file was not
+          # exposed; a here-string means it stays safe if anyone adds pipefail.
+          # Found and fixed on racetracker/evo-krt-schl by Seat 2, 2026-09-22.
+          if grep -qvE '\.(md|txt)$|^docs/|^\.github/' <<<"$CHANGED_FILES"; then
+            if ! grep -q '^VERSION$' <<<"$CHANGED_FILES"; then
               echo "::error::Source files changed but VERSION was not bumped. See PROJECT-RULES.md."
               exit 1
             fi

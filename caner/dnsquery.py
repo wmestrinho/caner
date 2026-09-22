@@ -12,6 +12,8 @@ import random
 import socket
 import struct
 
+from . import platforms
+
 TYPE_A = 1
 TYPE_AAAA = 28
 CLASS_IN = 1
@@ -102,23 +104,10 @@ def query(server: str, name: str, rtype: int = TYPE_A, timeout: float = 3.0) -> 
 
 
 def system_resolvers() -> list[str]:
-    """Upstream resolvers actually in use, skipping the 127.0.0.53 stub.
+    """Upstream resolvers this host actually queries.
 
-    systemd-resolved writes the real upstreams to its own resolv.conf; /etc/resolv.conf
-    usually just points at the local stub, which would tell us nothing.
+    Where they are recorded is entirely OS-specific — resolv.conf, the macOS
+    dynamic store, the Windows registry — so the lookup lives in `platforms`.
+    Kept here as the name netscan and the tests already call.
     """
-    found: list[str] = []
-    for path in ("/run/systemd/resolve/resolv.conf", "/etc/resolv.conf"):
-        try:
-            with open(path, encoding="utf-8", errors="replace") as handle:
-                for line in handle:
-                    if line.startswith("nameserver"):
-                        parts = line.split()
-                        if len(parts) > 1 and not parts[1].startswith("127."):
-                            if parts[1] not in found:
-                                found.append(parts[1])
-        except OSError:
-            continue
-        if found:
-            break
-    return found
+    return platforms.system_resolvers()

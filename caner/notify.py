@@ -16,12 +16,11 @@ from __future__ import annotations
 
 import hashlib
 import re
-import shutil
-import subprocess
 import time
 
+from . import platforms
+
 LEVELS = {"info": 0, "warn": 1, "alert": 2}
-URGENCY = {"info": "low", "warn": "normal", "alert": "critical"}
 
 # Numbers drift every scan ("981.0 MB" -> "984.2 MB"). Without this, a finding
 # would look new each time and the cooldown would never apply.
@@ -36,7 +35,7 @@ def fingerprint(finding: dict) -> str:
 class Notifier:
     def __init__(self, enabled: bool = True, min_level: str = "alert",
                  cooldown_s: int = 1800, require_repeat: bool = True):
-        self.enabled = enabled and shutil.which("notify-send") is not None
+        self.enabled = enabled and platforms.notify_available()
         self.min_level = LEVELS.get(min_level, 2)
         self.cooldown_s = cooldown_s
         self.require_repeat = require_repeat
@@ -76,17 +75,12 @@ class Notifier:
         return fired
 
     def _send(self, finding: dict) -> bool:
+        """Hand off to the host backend; how it reaches the screen is its business."""
         level = finding.get("level", "info")
-        text = finding.get("text", "")
         title = {"alert": "caner — action needed",
                  "warn": "caner — worth a look"}.get(level, "caner")
         try:
-            subprocess.run(
-                ["notify-send", "--app-name=caner",
-                 f"--urgency={URGENCY.get(level, 'normal')}",
-                 "--icon=utilities-system-monitor", title, text[:400]],
-                check=False, capture_output=True, timeout=10)
-            return True
-        except (OSError, subprocess.SubprocessError) as exc:
+            return platforms.notify(title, finding.get("text", ""), level)
+        except Exception as exc:                  # a backend must never kill the loop
             self.last_error = str(exc)
             return False

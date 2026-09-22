@@ -1,5 +1,12 @@
 # Cross-Machine Agent Handoff
 
+> **Snapshot — the canonical protocol is `ap-ops/docs/CROSS-MACHINE-HANDOFF.md`.**
+> Since the Session Protocol Standard (2026-09-22) the commands below are run
+> through the `ap` launcher from `ap-ops` (`ap receive caner`, `ap send caner`);
+> `check_machine_sync.py` invoked from inside *this* repo cannot find
+> `machines.json`, which lives in `ap-ops`. Read the canonical copy when the two
+> disagree.
+
 GitHub is the transport between every AP workstation. Local files, chat history,
 and an agent's memory are never assumed to exist on another machine. The
 workstations form the **Satellite Office**; seat rules, the meaning of "I'm at
