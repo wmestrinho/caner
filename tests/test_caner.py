@@ -1,12 +1,14 @@
 """Fast, offline tests. No network, no root, no fixtures on disk."""
 
+import json
 import os
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from caner import crashscan, dnsquery, netscan, notify, procscan  # noqa: E402
+from caner import crashscan, dnsquery, history, netscan, notify, procscan  # noqa: E402
 
 
 class TestDNSWire(unittest.TestCase):
@@ -169,6 +171,69 @@ class TestNotifier(unittest.TestCase):
         f = [{"level": "alert", "text": "boom"}]
         n.process(f, now=100)
         self.assertEqual(n.process(f, now=101), [])
+
+
+class TestHistory(unittest.TestCase):
+    def _fill(self, h, values, start=1000.0, step=30.0):
+        for i, v in enumerate(values):
+            h.sample({"available_mb": v, "reclaimable_mb": 0, "swap_used_mb": 0},
+                     {"total_dumps": 0}, {"endpoints": []}, 26.0, now=start + i * step)
+
+    def test_ring_is_bounded(self):
+        h = history.History(retain=5)
+        self._fill(h, list(range(20)))
+        self.assertEqual(len(h.series()), 5)
+
+    def test_trend_detects_sustained_decline(self):
+        h = history.History(retain=100)
+        self._fill(h, [1500 - i * 20 for i in range(40)])   # 20 min, steady fall
+        self.assertLess(h.summary()["avail_trend_mb"], -500)
+
+    def test_trend_ignores_a_single_spike(self):
+        """First-vs-last would be fooled here; comparing fifths should not be."""
+        h = history.History(retain=100)
+        flat = [1000] * 40
+        flat[20] = 100                                       # one dramatic dip
+        self._fill(h, flat)
+        self.assertEqual(h.summary()["avail_trend_mb"], 0.0)
+
+    def test_finding_needs_a_long_enough_span(self):
+        h = history.History(retain=100)
+        self._fill(h, [1500 - i * 50 for i in range(5)], step=30)   # only 2 min
+        self.assertEqual(h.findings(), [])
+
+    def test_finding_fires_on_long_sustained_decline(self):
+        h = history.History(retain=200)
+        self._fill(h, [1500 - i * 10 for i in range(80)], step=30)  # 40 min
+        found = h.findings()
+        self.assertTrue(found)
+        self.assertEqual(found[0]["level"], "warn")
+        self.assertIn("fallen", found[0]["text"])
+
+    def test_sample_returns_none_before_first_proc_scan(self):
+        h = history.History(retain=10)
+        self.assertIsNone(h.sample(None, None, None, 26.0))
+
+    def test_persists_and_reloads(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "h.jsonl")
+            h = history.History(retain=50, path=path)
+            self._fill(h, [900, 880, 860])
+            self.assertEqual(len(history.History(retain=50, path=path).series()), 3)
+
+    def test_tolerates_a_torn_final_line(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "h.jsonl")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(json.dumps({"t": 1.0, "avail_mb": 500}) + "\n")
+                fh.write('{"t": 2.0, "avail_mb":')          # killed mid-write
+            self.assertEqual(len(history.History(retain=50, path=path).series()), 1)
+
+    def test_disk_failure_never_raises(self):
+        h = history.History(retain=10, path="/proc/definitely/not/writable.jsonl")
+        self._fill(h, [900])
+        self.assertEqual(len(h.series()), 1)                 # sample still recorded
+        self.assertTrue(h.write_error)
 
 
 if __name__ == "__main__":

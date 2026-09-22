@@ -11,7 +11,19 @@ import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from . import __version__, crashscan, netscan, notify, procscan
+from . import __version__, crashscan, history, netscan, notify, procscan
+
+def _history_path(cfg: dict) -> str:
+    """Prefer systemd's StateDirectory; fall back to XDG state."""
+    base = (os.environ.get("STATE_DIRECTORY", "").split(":")[0]
+            or os.path.join(os.environ.get("XDG_STATE_HOME",
+                                           os.path.expanduser("~/.local/state")), "caner"))
+    try:
+        os.makedirs(base, exist_ok=True)
+    except OSError:
+        return ""
+    return os.path.join(base, cfg.get("history", {}).get("filename", "history.jsonl"))
+
 
 WEB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
 CONTENT_TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
@@ -63,6 +75,10 @@ class Scanner(threading.Thread):
         self.cache, self.cfg = cache, cfg
         self.stop_event = threading.Event()
         self._force = threading.Event()
+        hist = cfg.get("history", {})
+        self.history = history.History(
+            retain=hist.get("retain_samples", 1080),
+            path=_history_path(cfg) if hist.get("persist", True) else None)
         note = cfg.get("notify", {})
         self.notifier = notify.Notifier(
             enabled=note.get("enabled", True),
@@ -87,8 +103,22 @@ class Scanner(threading.Thread):
                     except Exception:                       # never let one scanner kill the loop
                         self.cache.put(name, {}, error=traceback.format_exc(limit=3))
                     next_at[name] = time.monotonic() + intervals[name]
+            self._record()
             self._notify()
             self.stop_event.wait(1.0)
+
+    def _record(self) -> None:
+        now = time.monotonic()
+        if now < getattr(self, "_next_sample", 0.0):
+            return
+        self._next_sample = now + self.cfg.get("history", {}).get("sample_every_s", 30)
+        try:
+            self.history.sample(self.cache.get("proc").get("data"),
+                                self.cache.get("crash").get("data"),
+                                self.cache.get("net").get("data"),
+                                self_rss_mb())
+        except Exception:
+            pass
 
     def _notify(self) -> None:
         findings = []
@@ -96,6 +126,10 @@ class Scanner(threading.Thread):
             data = self.cache.get(name).get("data")
             if data:
                 findings.extend(data.get("findings", []))
+        try:
+            findings.extend(self.history.findings())
+        except Exception:
+            pass
         try:
             self.notifier.process(findings)
         except Exception:                                  # notifications are never critical
@@ -172,6 +206,15 @@ def make_handler(cache: Cache, cfg: dict, scanner: Scanner):
                                                     if v == scanner.notifier.min_level][0]},
                 }
                 return self._json(200, payload)
+            if path == "/api/history":
+                window = query.get("since_s", [""])[0]
+                since = float(window) if window.replace(".", "", 1).isdigit() else None
+                return self._json(200, {
+                    "series": scanner.history.series(since),
+                    "summary": scanner.history.summary(),
+                    "findings": scanner.history.findings(),
+                    "write_error": scanner.history.write_error,
+                })
             if path == "/api/rescan":
                 scanner.force()
                 return self._json(200, {"ok": True})

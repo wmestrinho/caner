@@ -95,6 +95,43 @@ function renderNet(entry) {
   }).join("");
 }
 
+// Inline SVG sparkline. No library: a polyline and a fill are the whole job.
+function sparkline(values, w = 420, h = 44, pad = 3) {
+  if (!values.length) return "";
+  const lo = Math.min(...values), hi = Math.max(...values);
+  const span = hi - lo || 1;
+  const step = values.length > 1 ? (w - pad * 2) / (values.length - 1) : 0;
+  const pt = (v, i) => [pad + i * step, pad + (h - pad * 2) * (1 - (v - lo) / span)];
+  const pts = values.map(pt);
+  const line = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  const area = `${pad},${h - pad} ${line} ${(pad + (values.length - 1) * step).toFixed(1)},${h - pad}`;
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"
+            role="img" aria-label="available memory over time">
+    <polygon points="${area}" fill="var(--accent)" opacity="0.14"></polygon>
+    <polyline points="${line}" fill="none" stroke="var(--accent)" stroke-width="1.8"
+              stroke-linejoin="round" stroke-linecap="round"></polyline>
+  </svg>`;
+}
+
+function renderTrend(hist) {
+  const el = $("memtrend");
+  if (!hist || !hist.series || hist.series.length < 2) {
+    el.innerHTML = `<span class="muted">collecting history…</span>`;
+    return;
+  }
+  const s = hist.summary;
+  const dir = s.avail_trend_mb > 0 ? "rising" : s.avail_trend_mb < 0 ? "falling" : "";
+  const sign = s.avail_trend_mb > 0 ? "+" : "";
+  el.innerHTML = sparkline(hist.series.map((p) => p.avail_mb)) +
+    `<div class="figs">
+       <span>available <strong>${hist.series[hist.series.length - 1].avail_mb} MB</strong></span>
+       <span>range <strong>${s.avail_min_mb}–${s.avail_max_mb} MB</strong></span>
+       <span>trend <strong class="${dir}">${sign}${s.avail_trend_mb} MB</strong>
+             over ${dur(s.span_s)}</span>
+       <span>${s.samples} samples</span>
+     </div>`;
+}
+
 async function tick() {
   try {
     const res = await fetch(api("/api/snapshot"), { cache: "no-store" });
@@ -112,6 +149,18 @@ async function tick() {
     renderMem(snap.proc);
     renderCrash(snap.crash);
     renderNet(snap.net);
+    try {
+      const h = await fetch(api("/api/history"), { cache: "no-store" });
+      if (h.ok) {
+        const hist = await h.json();
+        renderTrend(hist);
+        if (hist.findings) hist.findings.forEach((f) => {
+          $("findings").insertAdjacentHTML("beforeend",
+            `<div class="finding ${esc(f.level)}"><span class="tag t-${esc(f.level)}">${
+              esc(f.level)}</span><p>${esc(f.text)}</p></div>`);
+        });
+      }
+    } catch (_) { /* history is a nicety, not a dependency */ }
   } catch (err) {
     $("findings").innerHTML =
       `<div class="finding warn"><span class="tag t-warn">offline</span>

@@ -57,3 +57,11 @@ code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; fon
 @media (min-width:900px){
   main{grid-template-columns:minmax(0,1fr)}
 }
+
+.trend{display:flex; flex-wrap:wrap; align-items:center; gap:.6rem 1.1rem;
+       padding:.7rem 1rem; border-bottom:1px solid var(--line)}
+.trend .spark{display:block; width:100%; max-width:420px; height:44px}
+.trend .figs{display:flex; flex-wrap:wrap; gap:.5rem 1rem; font-size:.8rem; color:var(--dim)}
+.trend .figs strong{color:var(--ink); font-variant-numeric:tabular-nums}
+.trend .rising{color:var(--ok)} .trend .falling{color:var(--warn)}
+@media (min-width:600px){ .trend .spark{width:420px} }

@@ -5,6 +5,30 @@ All notable changes to caner are documented here, following
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-09-22
+
+### Added
+- **History and sparklines** (`caner/history.py`). A point-in-time reading says
+  the box is short of memory; it cannot say whether that is a leak growing over
+  two hours or a browser someone just opened, and those call for opposite
+  responses. caner now keeps a bounded ring of numeric samples and draws the
+  shape.
+  - Inline-SVG sparkline of available memory in the Memory panel, with range,
+    trend and sample count. No charting library — a polyline and a fill.
+  - **Trend finding**: a sustained decline of 250 MB or more over at least
+    15 minutes raises a `warn`, which the notifier can then push. This is the
+    first finding that is impossible to derive from a single scan.
+  - Trend compares the mean of the first and last fifth of the window rather
+    than first-vs-last point, so one dramatic dip does not read as a slide.
+  - `/api/history` endpoint, with an optional `since_s` window.
+- Persistence to `~/.local/state/caner/history.jsonl`, reloaded at startup. The
+  systemd unit gains `StateDirectory=caner`, which stays writable despite
+  `ProtectHome=read-only`. Hard 4 MB cap, truncating to the newest half — a
+  monitor must not fill the disk it is monitoring.
+- 9 further tests: ring bounding, spike rejection, span and threshold gates on
+  the trend finding, persistence round-trip, tolerance of a torn final line, and
+  that an unwritable path still records in memory rather than raising.
+
 ## [0.2.0] — 2026-09-22
 
 ### Added

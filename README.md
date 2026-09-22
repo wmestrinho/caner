@@ -91,6 +91,20 @@ The unit caps memory at 128 MB and sets `OOMScoreAdjust=500` — if the box trul
 runs out of memory, the monitor should be the first thing sacrificed, not the
 work you were doing.
 
+### History and trends
+
+caner keeps a bounded ring of samples and draws available memory as a sparkline,
+because the useful question is rarely "how much is free" but "which way is it
+going". A sustained fall of 250 MB or more over 15 minutes raises a warning —
+the one finding that cannot be derived from a single scan.
+
+Samples persist to `~/.local/state/caner/history.jsonl` (capped at 4 MB) and
+reload on restart. Tune in `caner.json`:
+
+```json
+"history": { "persist": true, "retain_samples": 1080, "sample_every_s": 30 }
+```
+
 ### Notifications
 
 Alert-level findings push a desktop notification via `notify-send`, because an

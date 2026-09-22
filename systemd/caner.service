@@ -16,6 +16,9 @@ RestartSec=10
 # It is a memory monitor; it should be the first thing killed if memory runs out.
 MemoryMax=128M
 OOMScoreAdjust=500
+# ProtectHome=read-only would block history writes; StateDirectory is
+# bind-mounted writable and lands in ~/.local/state/caner.
+StateDirectory=caner
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectHome=read-only

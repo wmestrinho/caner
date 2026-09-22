@@ -21,6 +21,11 @@ DEFAULTS = {
     "endpoints": None,          # None -> netscan.DEFAULT_ENDPOINTS
     # Desktop notifications. Deliberately conservative: alerts only, one per
     # 30 min, and a finding must survive two scans before it interrupts anyone.
+    # A small ring of numeric samples so the dashboard can show direction of
+    # travel. Bounded in memory and on disk; a monitor must not fill the disk
+    # it is monitoring.
+    "history": {"persist": True, "retain_samples": 1080, "sample_every_s": 30,
+                "filename": "history.jsonl"},
     "notify": {"enabled": True, "min_level": "alert", "cooldown_s": 1800,
                "require_repeat": True},
 }
