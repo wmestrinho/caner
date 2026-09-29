@@ -9,7 +9,10 @@ reads like a healthy result.
 from __future__ import annotations
 
 import os
-import resource
+try:
+    import resource
+except ImportError:  # Windows has no Unix resource module.
+    resource = None
 
 CAPABILITIES = {"procscan": False, "crashscan": False, "netscan": True}
 
