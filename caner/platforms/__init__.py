@@ -21,6 +21,7 @@ from __future__ import annotations
 import platform as _stdlib_platform
 import socket
 import sys
+from importlib import import_module
 
 _REQUIRED = ("self_rss_mb", "system_resolvers", "dns_fix_command",
              "notify_available", "notify", "state_dir")
@@ -36,7 +37,7 @@ def _pick() -> tuple[str, object]:
     if sys.platform in ("win32", "cygwin"):
         from . import windows
         return "windows", windows
-    from . import generic
+    generic = import_module('.generic', __name__)
     return "generic", generic
 
 
@@ -64,7 +65,7 @@ def _resolve(attr: str):
         return getattr(_backend, attr)
     except AttributeError:
         pass
-    from . import generic
+    generic = import_module('.generic', __name__)
     try:
         return getattr(generic, attr)
     except AttributeError:
@@ -79,7 +80,7 @@ def __getattr__(attr: str):
     Note this hook is *not* consulted for lookups made inside this module, so
     code here calls `_resolve` directly.
     """
-    if attr.startswith("_"):
+    if attr.startswith("_") or attr in {"generic", "linux", "darwin", "windows"}:
         raise AttributeError(attr)
     return _resolve(attr)
 

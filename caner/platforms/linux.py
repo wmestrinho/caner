@@ -4,12 +4,18 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import os
 
 from .generic import state_dir  # noqa: F401  (XDG is already the Linux answer)
 
 CAPABILITIES = {"procscan": True, "crashscan": True, "netscan": True}
 
 URGENCY = {"info": "low", "warn": "normal", "alert": "critical"}
+
+
+def clock_ticks() -> int:
+    """Read Linux process-clock frequency only when the Linux scanner runs."""
+    return os.sysconf("SC_CLK_TCK")
 
 
 def self_rss_mb() -> float:

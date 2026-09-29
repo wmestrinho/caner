@@ -5,6 +5,17 @@ All notable changes to caner are documented here, following
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-09-29
+### Fixed
+- Windows startup: defer the Linux process-clock lookup until the Linux scanner
+  runs, allow the generic backend to import without Unix `resource`, and avoid
+  recursive fallback imports.
+- One-shot mode now observes scanner capabilities and reports unsupported
+  process/crash scanning with platform metadata instead of invoking Linux code.
+- Declare Win32 memory-query argument and return types so 64-bit process handles
+  are not truncated; working-set measurement no longer silently returns zero.
+
+
 ## [0.5.0] — 2026-09-22
 
 ### Added

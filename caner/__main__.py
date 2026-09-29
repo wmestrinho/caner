@@ -34,13 +34,21 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.once:
         import json
-        from . import crashscan, netscan, procscan
-        print(json.dumps({
-            "proc": procscan.scan(stale_after_s=cfg["stale_after_hours"] * 3600),
-            "crash": crashscan.scan(known_issues_path=cfg["known_issues"]),
-            "net": netscan.scan(endpoints=cfg["endpoints"],
-                                public_resolvers=cfg["public_resolvers"]),
-        }, indent=2, default=str))
+        from . import crashscan, netscan, platforms, procscan
+        caps = platforms.capabilities()
+        result = {"meta": {"platform": platforms.describe()}}
+        runners = {
+            "proc": lambda: procscan.scan(stale_after_s=cfg["stale_after_hours"] * 3600),
+            "crash": lambda: crashscan.scan(known_issues_path=cfg["known_issues"]),
+            "net": lambda: netscan.scan(endpoints=cfg["endpoints"],
+                                       public_resolvers=cfg["public_resolvers"]),
+        }
+        for name, runner in runners.items():
+            capability = {"proc": "procscan", "crash": "crashscan", "net": "netscan"}[name]
+            result[name] = runner() if caps.get(capability) else {
+                "unsupported": f"{capability} is not implemented for {platforms.backend_name()} yet"
+            }
+        print(json.dumps(result, indent=2, default=str))
         return 0
 
     server.serve(cfg)

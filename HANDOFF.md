@@ -2,6 +2,22 @@
 
 Cross-session state. Append newest at the top.
 
+## 2026-09-29 — ThinkPad Windows verification and startup repairs (Seat 2)
+
+Windows native run exposed import-time `os.sysconf`, absent `resource`, recursive
+generic imports, one-shot mode bypassing capabilities, and truncated Win32 handles.
+Fixed in 0.5.1 on `codex/windows-startup`. Windows procscan/crashscan remain
+unsupported; no new platform scanner is claimed. `--once` now says so explicitly.
+
+Verified: native Python 3.10, unit suite, baseline, one-shot scan. Working set
+reported 21.4 MB after the Win32 signature fix. Windows registry resolver ordering
+begins with the two Wi-Fi resolvers reported by `Get-DnsClientServerAddress`.
+The existing implementation also includes inactive registry entries afterward;
+this check does not claim all returned resolvers are active interfaces.
+No service installed, no notification sent, no config or DNS changes.
+Other-platform runtime checks remain their seats' work.
+
+
 ## 2026-09-22 — Mojang report abandoned; known_issues corrected (Seat 3)
 
 **Filing the launcher SIGSEGV upstream is dropped.** Not a deferral — a decision.

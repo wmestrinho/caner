@@ -116,3 +116,13 @@ unchanged at 27.1 MB.
 - **Seat notes:** Linux-only — it reads `/proc`, `coredumpctl` and
   `systemd-resolved`. It will not run on Seat 1 (macOS) or Seat 2 (Windows);
   those seats read the dashboard over the LAN instead.
+
+
+## 2026-09-29 — ThinkPad → all seats (Windows startup verified, 0.5.1)
+
+- Source: lenovo-thinkpad-x260; received af0ed85.
+- Delivery: `codex/windows-startup`, review PR. No hosted deploy or service install.
+- Fixed native Windows import/dispatch/one-shot/working-set faults. Unit suite and
+  baseline pass; native one-shot reports unsupported scanners honestly.
+- Linux/macOS: review and run existing suites before adoption. Windows runtime
+  verification is complete for this change; full proc/crash ports remain future work.

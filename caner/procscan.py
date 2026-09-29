@@ -15,7 +15,6 @@ import re
 import time
 from dataclasses import dataclass, field
 
-HZ = os.sysconf("SC_CLK_TCK")
 PROC = "/proc"
 
 # (group key, display label, predicate on (comm, cmdline)) -- first match wins.
@@ -83,6 +82,8 @@ def _scope_of(pid: int) -> str:
 
 def read_processes(uid: int | None = None) -> list[Proc]:
     """Snapshot every readable process. `uid=None` means all users."""
+    from .platforms.linux import clock_ticks
+    hz = clock_ticks()
     up = _uptime()
     out: list[Proc] = []
     for entry in os.listdir(PROC):
@@ -110,7 +111,7 @@ def read_processes(uid: int | None = None) -> list[Proc]:
             # comm can contain spaces and parens, so split after the last ')'
             tail = stat[stat.rfind(")") + 2:].split()
             if len(tail) >= 20:
-                age = max(0.0, up - int(tail[19]) / HZ)
+                age = max(0.0, up - int(tail[19]) / hz)
         out.append(Proc(
             pid=pid,
             comm=fields.get("Name", "?"),

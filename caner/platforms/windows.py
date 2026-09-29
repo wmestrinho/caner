@@ -11,6 +11,7 @@ once, for notifications, which are rate-limited to at most one per cooldown.
 from __future__ import annotations
 
 import ctypes
+from ctypes import wintypes
 import os
 import socket
 import subprocess
@@ -44,6 +45,11 @@ def self_rss_mb() -> float:
     """Working set size — the Windows equivalent of RSS."""
     try:
         kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)   # type: ignore[attr-defined]
+        kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+        kernel32.GetCurrentProcess.argtypes = []
+        kernel32.K32GetProcessMemoryInfo.restype = wintypes.BOOL
+        kernel32.K32GetProcessMemoryInfo.argtypes = [
+            wintypes.HANDLE, ctypes.POINTER(_PROCESS_MEMORY_COUNTERS), wintypes.DWORD]
         counters = _PROCESS_MEMORY_COUNTERS()
         counters.cb = ctypes.sizeof(counters)
         ok = kernel32.K32GetProcessMemoryInfo(
